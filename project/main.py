@@ -2,15 +2,37 @@ from bs4 import BeautifulSoup
 import sys
 from urllib.parse import urlparse
 from tqdm import tqdm
-import nltk
+import nltk, re, pprint
+from nltk import word_tokenize
+from nltk.corpus import stopwords
+from urllib import request, error
+from nltk.tokenize import RegexpTokenizer
+
+tokenizer = RegexpTokenizer(r'\w+')
 
 class SiteAnalyzer:
 
     def __init__(self):
         pass
 
-    def get_soup():
-        pass
+    def get_soup(self, url):
+        try:
+            html = request.urlopen(url).read().decode('utf8')
+            raw = BeautifulSoup(html, 'html.parser').get_text()
+            return raw
+        except error.HTTPError:
+            pass
+
+    def tokenize_soup(self, raw):  
+        tokens = tokenizer.tokenize(raw)
+        tokens_without_sw = [word for word in tokens if not word in stopwords.words()]
+        return tokens_without_sw
+
+    def analyze_tokenized_data(self, tokenized_data):
+        return nltk.Text(tokenized_data)
+
+    def tag_data(self, tokenized_data):
+        return nltk.pos_tag(tokenized_data)
 
     def import_data_to_excel():
         pass
@@ -51,19 +73,21 @@ def main(argv=None):
         'https://remoteplatz.com/',
         'https://stormotion.io/',
         'https://www.trustshoring.com/',
-        'https://geektastic.com/'
+        'https://geektastic.com/',
+        'https://geektastic.com/about',
+        'https://geektastic.com/blog'
     ]
     
-    for arg in tqdm(argv):
+    for arg in argv:
         if url_validator(arg):
-            _ = analyzer.get_soup()
+            _ = analyzer.get_soup(arg)
             if _ is None:
                 continue
-            _ = analyzer.import_data_to_excel()
-
-            
+            _ = analyzer.tokenize_soup(_)
+            _ = analyzer.analyze_tokenized_data(_)
+            fd = nltk.FreqDist(_)
+            print(fd.tabulate(10))
 
 if __name__ == "__main__":
-    nltk.download()
     main()
     

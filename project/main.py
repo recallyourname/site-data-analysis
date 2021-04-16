@@ -9,6 +9,8 @@ from urllib import request, error
 from urllib.request import Request, urlopen
 from nltk.tokenize import RegexpTokenizer
 from urllib.error import HTTPError
+import json
+from http.client import InvalidURL
 
 tokenizer = RegexpTokenizer(r'\w+')
 
@@ -28,7 +30,7 @@ class SiteAnalyzer:
 
         req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         webpage = urlopen(req).read()
-        raw = BeautifulSoup(webpage, 'html.parser')
+        raw = BeautifulSoup(webpage, 'html.parser', from_encoding="iso-8859-1")
 
         for link in raw.find_all('a'):
             temp = link.get('href')
@@ -42,7 +44,8 @@ class SiteAnalyzer:
         try:
             raw = BeautifulSoup(
                 urlopen(Request(url, headers={'User-Agent': 'Mozilla/5.0'})).read(), 
-                'html.parser'
+                'html.parser',
+                from_encoding="iso-8859-1"
                 ).get_text()
 
             return raw
@@ -50,11 +53,11 @@ class SiteAnalyzer:
         except error.HTTPError:
             pass
 
-    def tokenize_soup(self, raw):  
+    def tokenize_soup(self, raw):
         tokens = tokenizer.tokenize(raw)
         tokens_without_sw = [word for word in tokens if not word in stopwords.words()]
         return tokens_without_sw
-
+        
     def textify_data(self, tokenized_data):
         return nltk.Text(tokenized_data)
 
@@ -76,7 +79,7 @@ def main(argv=None):
         'https://youteam.io/',
         'https://www.daxx.com/',
         'https://distantjob.com/',
-        'https://relevant.software/',
+        # 'https://relevant.software/',
         # 'https://remotemore.com/',
         # 'https://www.peerbits.com/',
         # 'https://codersera.com/',
@@ -84,18 +87,14 @@ def main(argv=None):
         # 'https://soshace.com/',
         # 'https://intersog.com/',
         # 'https://x-team.com/',
-        # 'https://remotedevjobs.xyz/',
         # 'https://www.quickmonday.com/',
-        # 'https://remoteok.io/',
         # 'https://hackernoon.com/',
-        # 'https://www.classicinformatics.com',
-        # 'https://www.remoteco.com/',
-        # 'https://remoteplatz.com/',
-        # 'https://stormotion.io/',
-        # 'https://www.trustshoring.com/',
-        # 'https://geektastic.com/',
-        # 'https://geektastic.com/about',
-        'https://geektastic.com/blog'
+        'https://www.classicinformatics.com',
+        'https://www.remoteco.com/',
+        'https://remoteplatz.com/',
+        'https://stormotion.io/',
+        'https://www.trustshoring.com/',
+        'https://geektastic.com/'
     ]
     temp_list = []
     for link in argv:
@@ -110,18 +109,33 @@ def main(argv=None):
                 pass
     else: 
         search_list = temp_list
-
-    for link in search_list:
-        if analyzer.url_validator(link):
-            
-            _ = analyzer.get_soup(link)
+    
+    results = {}
+    for link in tqdm(search_list):
+        if analyzer.url_validator(link) and ".pdf" not in link:
+            print(link)
+            try:
+                _ = analyzer.get_soup(link)
+            except InvalidURL:
+                continue
             if _ is None:
                 continue
-            _ = analyzer.tokenize_soup(_)
-            _ = analyzer.textify_data(_)
-            fd = nltk.FreqDist(_)
-            print(link)
-            fd.tabulate(5)
+            try:
+                _ = analyzer.tokenize_soup(_)
+                _ = analyzer.textify_data(_)
+                fd = nltk.FreqDist(_)
+            except TypeError:
+                continue
+
+            for key, value in dict(fd.most_common(10)).items():
+                if key not in results:
+                    results.update({key:value})
+                else:
+                    results[key] += value
+
+    with open("output_deep.json", "w", encoding="utf-8") as f: 
+        json.dump(sorted(results.items(), key=lambda x: int(x[1]), reverse=True), f)
+            
 
 if __name__ == "__main__":
     main()

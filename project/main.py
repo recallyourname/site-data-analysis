@@ -6,6 +6,7 @@ import nltk, re, pprint
 from nltk import word_tokenize
 from nltk.corpus import stopwords
 from urllib import request, error
+from urllib.request import Request, urlopen
 from nltk.tokenize import RegexpTokenizer
 
 tokenizer = RegexpTokenizer(r'\w+')
@@ -17,9 +18,13 @@ class SiteAnalyzer:
 
     def get_soup(self, url):
         try:
-            html = request.urlopen(url).read().decode('utf8')
-            raw = BeautifulSoup(html, 'html.parser').get_text()
+            raw = BeautifulSoup(
+                urlopen(Request(url, headers={'User-Agent': 'Mozilla/5.0'})).read(), 
+                'html.parser'
+                ).get_text()
+
             return raw
+
         except error.HTTPError:
             pass
 
@@ -28,7 +33,7 @@ class SiteAnalyzer:
         tokens_without_sw = [word for word in tokens if not word in stopwords.words()]
         return tokens_without_sw
 
-    def analyze_tokenized_data(self, tokenized_data):
+    def textify_data(self, tokenized_data):
         return nltk.Text(tokenized_data)
 
     def tag_data(self, tokenized_data):
@@ -36,14 +41,13 @@ class SiteAnalyzer:
 
     def import_data_to_excel():
         pass
-
-
-def url_validator(url):
-    try:
-        result = urlparse(url)
-        return all([result.scheme, result.netloc, result.path])
-    except:
-        return False
+    
+    def url_validator(self, url):
+        try:
+            result = urlparse(url)
+            return all([result.scheme, result.netloc, result.path])
+        except:
+            return False
 
 def main(argv=None):
     analyzer = SiteAnalyzer()
@@ -79,12 +83,12 @@ def main(argv=None):
     ]
     
     for arg in argv:
-        if url_validator(arg):
+        if analyzer.url_validator(arg):
             _ = analyzer.get_soup(arg)
             if _ is None:
                 continue
             _ = analyzer.tokenize_soup(_)
-            _ = analyzer.analyze_tokenized_data(_)
+            _ = analyzer.textify_data(_)
             fd = nltk.FreqDist(_)
             print(fd.tabulate(10))
 
